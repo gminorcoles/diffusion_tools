@@ -173,21 +173,30 @@ def training_loss(net, loss_fn, X, diffusion_hyperparams, only_generate_missing=
     Returns:
     training loss
     """
+    do_unconditional = True
 
     _dh = diffusion_hyperparams
     T, Alpha_bar = _dh["T"], _dh["Alpha_bar"]
 
     audio = X[0]
     cond = X[1]
+    if do_unconditional:
+        cond = cond * 0.0
+
     mask = X[2]
     loss_mask = X[3]
 
     B, C, L = audio.shape  # B is batchsize, C=1, L is audio length
     diffusion_steps = torch.randint(T, size=(B, 1, 1)).cuda()  # randomly sample diffusion steps from 1~T
 
+    #conditional_only = True
+    #z = std_normal(audio.shape)
+    #gcoles - this is for conditional only
     z = std_normal(audio.shape)
+
     if only_generate_missing == 1:
         z = audio * mask.float() + z * (1 - mask).float()
+
     transformed_X = torch.sqrt(Alpha_bar[diffusion_steps]) * audio + torch.sqrt(
         1 - Alpha_bar[diffusion_steps]) * z  # compute x_t from q(x_t|x_0)
     epsilon_theta = net(

@@ -4,6 +4,7 @@ import json
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn import DataParallel
 
 from utils.util import find_max_epoch, print_size, training_loss, calc_diffusion_hyperparams
 from utils.util import get_mask_mnr, get_mask_bm, get_mask_rm
@@ -63,13 +64,14 @@ def train(output_directory,
 
     # predefine model
     if use_model == 0:
-        net = DiffWaveImputer(**model_config).cuda()
+        nnet = DiffWaveImputer(**model_config).cuda()
     elif use_model == 1:
-        net = SSSDSAImputer(**model_config).cuda()
+        nnet = SSSDSAImputer(**model_config).cuda()
     elif use_model == 2:
-        net = SSSDS4Imputer(**model_config).cuda()
+        nnet = SSSDS4Imputer(**model_config).cuda()
     else:
         print('Model chosen not available.')
+    net = DataParallel(nnet)
     print_size(net)
 
     # define optimizer
@@ -98,15 +100,17 @@ def train(output_directory,
         print('No valid checkpoint model found, start training from initialization.')
 
         
-        
-    
+
     ### Custom data loading and reshaping ###
         
         
-
+    needs_split = True
     training_data = np.load(trainset_config['train_data_path'])
-    training_data = np.split(training_data, 160, 0)
-    training_data = np.array(training_data)
+    #training_data = np.split(training_data, 160, 0)
+    if needs_split:
+        training_data = np.split(training_data, 160, 0)
+        training_data = np.array(training_data)
+
     training_data = torch.from_numpy(training_data).float().cuda()
     print('Data loaded')
 
@@ -156,7 +160,7 @@ def train(output_directory,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', type=str, default='config/SSSDS4.json',
+    parser.add_argument('-c', '--config', type=str, default='/home/paperspace/src/SSSD/src/config/config_SSSDS4.json',
                         help='JSON file for configuration')
 
     args = parser.parse_args()
